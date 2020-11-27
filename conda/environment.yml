@@ -1,0 +1,5 @@
+name: mlpipeline
+dependencies:
+  - python=3.7
+  - pip:
+    - kfp
