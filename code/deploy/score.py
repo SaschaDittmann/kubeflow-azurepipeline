@@ -9,6 +9,8 @@ import tensorflow as tf
 
 from azureml.core.model import Model
 
+model = None
+
 def init():
     global model
 
@@ -17,7 +19,7 @@ def init():
     except:
         model_path = '/model/latest.h5'
 
-    print('Attempting to load model')
+    print('Attempting to load model from {}'.format(model_path))
     model = tf.keras.models.load_model(model_path)
     model.summary()
     print('Done!')
@@ -27,25 +29,37 @@ def init():
 def run(raw_data):
     global model
     prev_time = time.time()
-          
-    post = json.loads(raw_data)
-    img_path = post['image']
+    print('Input ({})'.format(raw_data))
 
-    current_time = time.time()
+    try:
+        post = json.loads(raw_data)
+        if type(post) is dict:
+            img_path = post['image']
+        elif type(post) is str:
+            img_path = post
+        else:
+            print("Unable to parse raw_data.")
+            return
+    except ValueError:
+        img_path = raw_data
 
     tensor = process_image(img_path, 160)
     t = tf.reshape(tensor, [-1, 160, 160, 3])
     o = model.predict(t, steps=1)#[0][0]
     print(o)
     o = o[0][0]
+
+    current_time = time.time()
+
     inference_time = datetime.timedelta(seconds=current_time - prev_time)
+
     payload = {
         'time': inference_time.total_seconds(),
         'prediction': 'burrito' if o > 0.5 else 'tacos',
         'scores': str(o)
     }
 
-    print('Input ({}), Prediction ({})'.format(post['image'], payload))
+    print('Input ({}), Prediction ({})'.format(img_path, payload))
 
     return payload
 
@@ -58,7 +72,6 @@ def process_image(path, image_size):
         img = np.array(Image.open(path))
 
     img_tensor = tf.convert_to_tensor(img, dtype=tf.float32)
-    #tf.image.decode_jpeg(img_raw, channels=3)
     img_final = tf.image.resize(img_tensor, [image_size, image_size]) / 255
     return img_final
     
@@ -80,11 +93,9 @@ if __name__ == "__main__":
         print('{} => {}'.format(k, v))
 
     info('Taco Test')
-    taco = json.dumps({ 'image': images['tacos'] })
-    print(taco)
-    run(taco)
+    print(images['tacos'])
+    run(images['tacos'])
 
     info('Burrito Test')
-    burrito = json.dumps({ 'image': images['burrito'] })
-    print(burrito)
-    run(burrito)
+    print(images['burrito'])
+    run(images['burrito'])
