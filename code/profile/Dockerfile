@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:2.0.0a0-gpu-py3
+FROM tensorflow/tensorflow:2.1.2-gpu
 RUN pip install azure-cli
 RUN az extension add -n azure-cli-ml
 RUN pip install --upgrade pip
