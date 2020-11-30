@@ -9,6 +9,8 @@ import tensorflow as tf
 
 from azureml.core.model import Model
 
+model = None
+
 def init():
     global model
 
@@ -29,7 +31,19 @@ def run(raw_data):
     prev_time = time.time()
     print('Input ({})'.format(raw_data))
 
-    tensor = process_image(raw_data, 160)
+    try:
+        post = json.loads(raw_data)
+        if type(post) is dict:
+            img_path = post['image']
+        elif type(post) is str:
+            img_path = post
+        else:
+            print("Unable to parse raw_data.")
+            return
+    except ValueError:
+        img_path = raw_data
+
+    tensor = process_image(img_path, 160)
     t = tf.reshape(tensor, [-1, 160, 160, 3])
     o = model.predict(t, steps=1)#[0][0]
     print(o)
@@ -45,7 +59,7 @@ def run(raw_data):
         'scores': str(o)
     }
 
-    print('Input ({}), Prediction ({})'.format(raw_data, payload))
+    print('Input ({}), Prediction ({})'.format(img_path, payload))
 
     return payload
 
