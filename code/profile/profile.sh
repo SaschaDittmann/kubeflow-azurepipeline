@@ -62,7 +62,7 @@ fi
 if [ -f "${BASE_PATH}/myprofileresult.json" ]; then
     echo "model profile already exists, skipping"
 else
-    az ml model profile -n $PROFILE_NAME \
+    az ml model profile -n "${PROFILE_NAME}-$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 4 | head -n 1)" \
         -w $WORKSPACE -g $RESOURCE_GROUP \
         -f ${BASE_PATH}/model.json -t myprofileresult.json \
         --es ${ENTRY_SCRIPT} \
