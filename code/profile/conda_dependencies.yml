@@ -14,6 +14,10 @@ dependencies:
     # Required packages for AzureML execution, history, and data preparation.
   - azureml-defaults
   - numpy
-  - tensorflow==2.0.0-alpha0
+  - tensorflow==2.1.2
   - Pillow
   - requests
+
+channels:
+- anaconda
+- conda-forge
