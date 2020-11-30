@@ -20,7 +20,8 @@ def tacosandburritos_train(
     learning_rate=0.0001,
     imagetag='latest',
     model_name='tacosandburritos',
-    profile_name='tacoprofile'
+    profile_name='tacoprofile',
+    service_name='tacosandburritos-service'
 ):
 
     operations = {}
@@ -90,9 +91,8 @@ def tacosandburritos_train(
         arguments=[
             '/scripts/profile.sh',
             '-n', profile_name,
-            '-m', model_name,
-            '-i', '/scripts/inferenceconfig.json',
-            '-d', '{"image":"https://www.exploreveg.org/files/2015/05/sofritas-burrito.jpeg"}',
+            '-e', '/scripts/score.py',
+            '-d', '{ "schemaVersion": 1, "datasetType": "Tabular", "parameters": { "path": [ "https://github.com/SaschaDittmann/kubeflow-azurepipeline/raw/master/data/profiledata.json" ], "sourceType": "json_lines_files" }, "registration": { "createNewVersion": true, "name": "tacosandburritos-dataset", "tags": { "mlops-system": "kubeflow" } } }',
             '-t', tenant_id,
             '-r', resource_group,
             '-w', workspace,
@@ -110,10 +110,9 @@ def tacosandburritos_train(
         command=['sh'],
         arguments=[
             '/scripts/deploy.sh',
-            '-n', model_name,
-            '-m', model_name,
-            '-i', '/scripts/inferenceconfig.json',
-            '-d', '/scripts/deploymentconfig.json',
+            '-n', service_name,
+            '-e', '/scripts/score.py',
+            '-d', '/scripts/acideploymentconfig.json',
             '-t', tenant_id,
             '-r', resource_group,
             '-w', workspace,
