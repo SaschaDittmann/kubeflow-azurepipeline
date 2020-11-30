@@ -16,7 +16,7 @@ def info(msg, char = "#", width = 75):
     print(char + "   %0*s" % ((-1*width)+5, msg) + char)
     print(char * width)
 
-def run(model_path, model_name, tenant_id, service_principal_id,
+def run(base_path, model_path, model_name, tenant_id, service_principal_id,
         service_principal_password, subscription_id, resource_group, workspace, tags):
     auth_args = {
         'tenant_id': tenant_id,
@@ -40,6 +40,12 @@ def run(model_path, model_name, tenant_id, service_principal_id,
     model_path = relpath(model_path, '.')
 
     model = Model.register(ws, model_name=model_name, model_path=model_path, tags=tags)
+
+    model_specs_file = Path(base_path).resolve(strict=False).joinpath("model.json")
+    print('writing model id to {}'.format(model_specs_file))
+    with open(str(model_specs_file), 'w+') as f:
+        f.write('{{"modelId": "{}", "workspaceName": "{}", "resourceGroupName": "{}"}}'.format(model.id, ws.name, resource_group))
+    
     print('Done!')
 
 if __name__ == "__main__":
@@ -61,6 +67,7 @@ if __name__ == "__main__":
     model_path = str(Path(args.base_path).resolve(strict=False).joinpath(args.model).resolve(strict=False))
     params_path = str(Path(args.base_path).resolve(strict=False).joinpath('params.json').resolve(strict=False))
     rgs = {
+        'base_path': args.base_path,
         'model_path': model_path,
         'model_name': args.model_name,
         'tenant_id': args.tenant_id,
