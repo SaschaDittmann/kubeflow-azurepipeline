@@ -87,7 +87,7 @@ def tacosandburritos_train(
     operations['profile'] = dsl.ContainerOp(
         name='profile',
         image='bytesmith/kubeflow-azurepipeline:latest-profile',
-        command=['sh'],
+        command=['/bin/bash'],
         arguments=[
             '/scripts/profile.sh',
             '-n', profile_name,
@@ -107,7 +107,7 @@ def tacosandburritos_train(
     operations['deploy'] = dsl.ContainerOp(
         name='deploy',
         image='bytesmith/kubeflow-azurepipeline:latest-deploy',
-        command=['sh'],
+        command=['/bin/bash'],
         arguments=[
             '/scripts/deploy.sh',
             '-n', service_name,

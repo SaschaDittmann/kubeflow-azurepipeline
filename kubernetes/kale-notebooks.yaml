@@ -1,0 +1,31 @@
+apiVersion: kubeflow.org/v1
+kind: Notebook
+metadata:
+  labels:
+    app: kale-notebooks
+  name: kale-notebooks
+spec:
+  template:
+    spec:
+      containers:
+      - env: []
+        image: bytesmith/kubeflow-kale-notebooks:latest-cpu-devel
+        name: kale-notebooks
+        resources:
+          requests:
+            cpu: "1"
+            memory: 2.0Gi
+        volumeMounts:
+        - mountPath: /home/jovyan
+          name: workspace-kale-notebooks
+        - mountPath: /dev/shm
+          name: dshm
+      serviceAccountName: default-editor
+      ttlSecondsAfterFinished: 300
+      volumes:
+      - name: workspace-kale-notebooks
+        persistentVolumeClaim:
+          claimName: workspace-kale-notebooks
+      - emptyDir:
+          medium: Memory
+        name: dshm
