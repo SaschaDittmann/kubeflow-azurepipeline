@@ -1,0 +1,415 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: tacos-vs-burritos-
+  annotations:
+    pipelines.kubeflow.org/kfp_sdk_version: 1.1.1
+    pipelines.kubeflow.org/pipeline_spec: '{"description": "Simple TF CNN for binary
+      classifier between burritos and tacos", "inputs": [{"name": "tenant_id"}, {"name":
+      "service_principal_id"}, {"name": "service_principal_password"}, {"name": "subscription_id"},
+      {"name": "resource_group"}, {"name": "workspace"}, {"default": "azure", "name":
+      "persistent_volume_name", "optional": true}, {"default": "/mnt/azure", "name":
+      "persistent_volume_path", "optional": true}, {"default": "https://github.com/SaschaDittmann/kubeflow-azurepipeline/raw/main/data/tacodata.zip",
+      "name": "data_download", "optional": true}, {"default": "5", "name": "epochs",
+      "optional": true}, {"default": "32", "name": "batch", "optional": true}, {"default":
+      "0.0001", "name": "learning_rate", "optional": true}, {"default": "latest",
+      "name": "imagetag", "optional": true}, {"default": "tacosandburritos", "name":
+      "model_name", "optional": true}, {"default": "tacoprofile", "name": "profile_name",
+      "optional": true}, {"default": "tacosandburritos-service", "name": "service_name",
+      "optional": true}], "name": "Tacos vs. Burritos"}'
+  labels:
+    pipelines.kubeflow.org/kfp_sdk_version: 1.1.1
+spec:
+  arguments:
+    parameters:
+    - name: tenant_id
+      value: <tenant_id>
+    - name: service_principal_id
+      value: <service_principal_id>
+    - name: service_principal_password
+      value: <service_principal_password>
+    - name: subscription_id
+      value: <subscription_id>
+    - name: resource_group
+      value: <resource_group>
+    - name: workspace
+      value: <ml_workspace_name>
+    - name: persistent_volume_name
+      value: azure
+    - name: persistent_volume_path
+      value: /mnt/azure
+    - name: data_download
+      value: https://github.com/SaschaDittmann/kubeflow-azurepipeline/raw/main/data/tacodata.zip
+    - name: epochs
+      value: "5"
+    - name: batch
+      value: "32"
+    - name: learning_rate
+      value: "0.0001"
+    - name: imagetag
+      value: latest
+    - name: model_name
+      value: tacosandburritos
+    - name: profile_name
+      value: tacoprofile
+    - name: service_name
+      value: tacosandburritos-service
+  entrypoint: tacos-vs-burritos
+  serviceAccountName: default-editor
+  templates:
+  - container:
+      args:
+      - /scripts/deploy.sh
+      - -n
+      - '{{inputs.parameters.service_name}}'
+      - -e
+      - /scripts/score.py
+      - -d
+      - /scripts/acideploymentconfig.json
+      - -t
+      - '{{inputs.parameters.tenant_id}}'
+      - -r
+      - '{{inputs.parameters.resource_group}}'
+      - -w
+      - '{{inputs.parameters.workspace}}'
+      - -s
+      - '{{inputs.parameters.service_principal_id}}'
+      - -p
+      - '{{inputs.parameters.service_principal_password}}'
+      - -u
+      - '{{inputs.parameters.subscription_id}}'
+      - -b
+      - '{{inputs.parameters.persistent_volume_path}}'
+      command:
+      - /bin/bash
+      image: bytesmith/kubeflow-azurepipeline:latest-deploy
+      imagePullPolicy: Always
+      name: ""
+      resources: {}
+      volumeMounts:
+      - mountPath: /mnt/azure
+        name: azure
+    inputs:
+      parameters:
+      - name: persistent_volume_path
+      - name: resource_group
+      - name: service_name
+      - name: service_principal_id
+      - name: service_principal_password
+      - name: subscription_id
+      - name: tenant_id
+      - name: workspace
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        pipelines.kubeflow.org/cache_enabled: "true"
+    name: deploy
+    outputs: {}
+    volumes:
+    - name: azure
+      persistentVolumeClaim:
+        claimName: azure-managed-disk
+  - container:
+      args:
+      - /scripts/data.py
+      - --base_path
+      - '{{inputs.parameters.persistent_volume_path}}'
+      - --data
+      - train
+      - --target
+      - train.txt
+      - --img_size
+      - "160"
+      - --zipfile
+      - '{{inputs.parameters.data_download}}'
+      command:
+      - python
+      image: bytesmith/kubeflow-azurepipeline:latest-preprocess
+      imagePullPolicy: Always
+      name: ""
+      resources: {}
+      volumeMounts:
+      - mountPath: /mnt/azure
+        name: azure
+    inputs:
+      parameters:
+      - name: data_download
+      - name: persistent_volume_path
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        pipelines.kubeflow.org/cache_enabled: "true"
+    name: preprocess
+    outputs: {}
+    volumes:
+    - name: azure
+      persistentVolumeClaim:
+        claimName: azure-managed-disk
+  - container:
+      args:
+      - /scripts/profile.sh
+      - -n
+      - '{{inputs.parameters.profile_name}}'
+      - -e
+      - /scripts/score.py
+      - -d
+      - '{ "schemaVersion": 1, "datasetType": "Tabular", "parameters": { "path": [
+        "https://github.com/SaschaDittmann/kubeflow-azurepipeline/raw/master/data/profiledata.json"
+        ], "sourceType": "json_lines_files" }, "registration": { "createNewVersion":
+        true, "name": "tacosandburritos-dataset", "tags": { "mlops-system": "kubeflow"
+        } } }'
+      - -t
+      - '{{inputs.parameters.tenant_id}}'
+      - -r
+      - '{{inputs.parameters.resource_group}}'
+      - -w
+      - '{{inputs.parameters.workspace}}'
+      - -s
+      - '{{inputs.parameters.service_principal_id}}'
+      - -p
+      - '{{inputs.parameters.service_principal_password}}'
+      - -u
+      - '{{inputs.parameters.subscription_id}}'
+      - -b
+      - '{{inputs.parameters.persistent_volume_path}}'
+      command:
+      - /bin/bash
+      image: bytesmith/kubeflow-azurepipeline:latest-profile
+      imagePullPolicy: Always
+      name: ""
+      resources: {}
+      volumeMounts:
+      - mountPath: /mnt/azure
+        name: azure
+    inputs:
+      parameters:
+      - name: persistent_volume_path
+      - name: profile_name
+      - name: resource_group
+      - name: service_principal_id
+      - name: service_principal_password
+      - name: subscription_id
+      - name: tenant_id
+      - name: workspace
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        pipelines.kubeflow.org/cache_enabled: "true"
+    name: profile
+    outputs: {}
+    volumes:
+    - name: azure
+      persistentVolumeClaim:
+        claimName: azure-managed-disk
+  - container:
+      args:
+      - /scripts/register.py
+      - --base_path
+      - '{{inputs.parameters.persistent_volume_path}}'
+      - --model
+      - latest.h5
+      - --model_name
+      - '{{inputs.parameters.model_name}}'
+      - --tenant_id
+      - '{{inputs.parameters.tenant_id}}'
+      - --service_principal_id
+      - '{{inputs.parameters.service_principal_id}}'
+      - --service_principal_password
+      - '{{inputs.parameters.service_principal_password}}'
+      - --subscription_id
+      - '{{inputs.parameters.subscription_id}}'
+      - --resource_group
+      - '{{inputs.parameters.resource_group}}'
+      - --workspace
+      - '{{inputs.parameters.workspace}}'
+      command:
+      - python
+      image: bytesmith/kubeflow-azurepipeline:latest-register
+      imagePullPolicy: Always
+      name: ""
+      resources: {}
+      volumeMounts:
+      - mountPath: /mnt/azure
+        name: azure
+    inputs:
+      parameters:
+      - name: model_name
+      - name: persistent_volume_path
+      - name: resource_group
+      - name: service_principal_id
+      - name: service_principal_password
+      - name: subscription_id
+      - name: tenant_id
+      - name: workspace
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        pipelines.kubeflow.org/cache_enabled: "true"
+    name: register
+    outputs: {}
+    volumes:
+    - name: azure
+      persistentVolumeClaim:
+        claimName: azure-managed-disk
+  - dag:
+      tasks:
+      - arguments:
+          parameters:
+          - name: persistent_volume_path
+            value: '{{inputs.parameters.persistent_volume_path}}'
+          - name: resource_group
+            value: '{{inputs.parameters.resource_group}}'
+          - name: service_name
+            value: '{{inputs.parameters.service_name}}'
+          - name: service_principal_id
+            value: '{{inputs.parameters.service_principal_id}}'
+          - name: service_principal_password
+            value: '{{inputs.parameters.service_principal_password}}'
+          - name: subscription_id
+            value: '{{inputs.parameters.subscription_id}}'
+          - name: tenant_id
+            value: '{{inputs.parameters.tenant_id}}'
+          - name: workspace
+            value: '{{inputs.parameters.workspace}}'
+        dependencies:
+        - profile
+        name: deploy
+        template: deploy
+      - arguments:
+          parameters:
+          - name: data_download
+            value: '{{inputs.parameters.data_download}}'
+          - name: persistent_volume_path
+            value: '{{inputs.parameters.persistent_volume_path}}'
+        name: preprocess
+        template: preprocess
+      - arguments:
+          parameters:
+          - name: persistent_volume_path
+            value: '{{inputs.parameters.persistent_volume_path}}'
+          - name: profile_name
+            value: '{{inputs.parameters.profile_name}}'
+          - name: resource_group
+            value: '{{inputs.parameters.resource_group}}'
+          - name: service_principal_id
+            value: '{{inputs.parameters.service_principal_id}}'
+          - name: service_principal_password
+            value: '{{inputs.parameters.service_principal_password}}'
+          - name: subscription_id
+            value: '{{inputs.parameters.subscription_id}}'
+          - name: tenant_id
+            value: '{{inputs.parameters.tenant_id}}'
+          - name: workspace
+            value: '{{inputs.parameters.workspace}}'
+        dependencies:
+        - register
+        name: profile
+        template: profile
+      - arguments:
+          parameters:
+          - name: model_name
+            value: '{{inputs.parameters.model_name}}'
+          - name: persistent_volume_path
+            value: '{{inputs.parameters.persistent_volume_path}}'
+          - name: resource_group
+            value: '{{inputs.parameters.resource_group}}'
+          - name: service_principal_id
+            value: '{{inputs.parameters.service_principal_id}}'
+          - name: service_principal_password
+            value: '{{inputs.parameters.service_principal_password}}'
+          - name: subscription_id
+            value: '{{inputs.parameters.subscription_id}}'
+          - name: tenant_id
+            value: '{{inputs.parameters.tenant_id}}'
+          - name: workspace
+            value: '{{inputs.parameters.workspace}}'
+        dependencies:
+        - training
+        name: register
+        template: register
+      - arguments:
+          parameters:
+          - name: batch
+            value: '{{inputs.parameters.batch}}'
+          - name: epochs
+            value: '{{inputs.parameters.epochs}}'
+          - name: learning_rate
+            value: '{{inputs.parameters.learning_rate}}'
+          - name: persistent_volume_path
+            value: '{{inputs.parameters.persistent_volume_path}}'
+        dependencies:
+        - preprocess
+        name: training
+        template: training
+    inputs:
+      parameters:
+      - name: batch
+      - name: data_download
+      - name: epochs
+      - name: learning_rate
+      - name: model_name
+      - name: persistent_volume_path
+      - name: profile_name
+      - name: resource_group
+      - name: service_name
+      - name: service_principal_id
+      - name: service_principal_password
+      - name: subscription_id
+      - name: tenant_id
+      - name: workspace
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        pipelines.kubeflow.org/cache_enabled: "true"
+    name: tacos-vs-burritos
+    outputs: {}
+  - container:
+      args:
+      - /scripts/train.py
+      - --base_path
+      - '{{inputs.parameters.persistent_volume_path}}'
+      - --data
+      - train
+      - --epochs
+      - '{{inputs.parameters.epochs}}'
+      - --batch
+      - '{{inputs.parameters.batch}}'
+      - --image_size
+      - "160"
+      - --lr
+      - '{{inputs.parameters.learning_rate}}'
+      - --outputs
+      - model
+      - --dataset
+      - train.txt
+      command:
+      - python
+      image: bytesmith/kubeflow-azurepipeline:latest-training
+      imagePullPolicy: Always
+      name: ""
+      resources: {}
+      volumeMounts:
+      - mountPath: /mnt/azure
+        name: azure
+    inputs:
+      parameters:
+      - name: batch
+      - name: epochs
+      - name: learning_rate
+      - name: persistent_volume_path
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        pipelines.kubeflow.org/cache_enabled: "true"
+    name: training
+    outputs: {}
+    volumes:
+    - name: azure
+      persistentVolumeClaim:
+        claimName: azure-managed-disk
