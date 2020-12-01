@@ -29,3 +29,15 @@ spec:
       - emptyDir:
           medium: Memory
         name: dshm
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: workspace-kale-notebooks
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: default
+  resources:
+    requests:
+      storage: 10Gi
